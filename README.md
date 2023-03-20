@@ -28,18 +28,18 @@ Droop mode: Click elbow to perform a min-droop move at that position.
 Cross-Bump Swap mode: Click a bump or a cross to swap it with another cross/bump in the pipes. If no exists it toggles between being a cross and bump.
 
 # Color options:
-Blue
-Brown
-Chartreuse
-Cyan
-Gold
-Green
-Navy
-Orange
-Pink
-Plum
-Purple
-Red
+Blue,
+Brown,
+Chartreuse,
+Cyan,
+Gold,
+Green,
+Navy,
+Orange,
+Pink,
+Plum,
+Purple,
+Red,
 Turquoise
 
 Edit config file to change default size and default color.
