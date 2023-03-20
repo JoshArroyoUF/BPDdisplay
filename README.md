@@ -3,7 +3,7 @@ A graphical interface for bumbpless pipe dreams.
 
 Download the .zip file to use.
 
-#Controls:
+# Controls:
 
 I: Open up left/right insertion menu. The insertion method was developed by Daoji Huang and Pavlo Pylyavskyy.
 
@@ -27,7 +27,7 @@ Droop mode: Click elbow to perform a min-droop move at that position.
 
 Cross-Bump Swap mode: Click a bump or a cross to swap it with another cross/bump in the pipes. If no exists it toggles between being a cross and bump.
 
-Color options:
+# Color options:
 Blue
 Brown
 Chartreuse
