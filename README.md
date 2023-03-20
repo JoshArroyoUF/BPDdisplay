@@ -1,6 +1,8 @@
 # BPDdisplay
 A graphical interface for bumbpless pipe dreams.
 
+Download the .zip file to use.
+
 #Controls:
 
 I: Open up left/right insertion menu. The insertion method was developed by Daoji Huang and Pavlo Pylyavskyy.
