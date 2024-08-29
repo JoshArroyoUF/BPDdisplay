@@ -1,0 +1,6 @@
+[config]
+default_size = 7
+default_color = Green
+default_scale = 96
+goodpats = []
+badpats = []
