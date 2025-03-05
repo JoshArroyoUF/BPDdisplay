@@ -10,6 +10,13 @@ Created on Tue Mar 22 20:01:42 2022
 import itertools
 import copy
 from collections import defaultdict
+import random
+
+def sortfcn(loc):
+    return -1000*loc[0]+loc[1]
+
+def cosortfcn(loc):
+    return 1000*loc[0]+loc[1]
 
 class box:
     
@@ -19,7 +26,7 @@ class box:
     #3 - cross
     #4 - se elbow
     #5 - nw elbow
-    #6 - bump
+    #6 - bump   
     #box location 1-indexed [row, col]
     
     def __init__(self, location, filling):
@@ -30,8 +37,9 @@ class BPD:
     
     #Bumpless Pipe Dream is defined purely by its size and elbow locations
     #Note that elbow locations are 1-indexed!!!
-    def __init__(self, size, elbows, reset=0):
+    def __init__(self, size, elbows, reset=0, co=False):
         self.size = size
+        self.co = co
         if reset==0:
             self.latex = ''
         self.elbows = elbows
@@ -41,45 +49,127 @@ class BPD:
         self.bad = []
         self.badpipes = []
         self.nwelbowcount = [0 for z in range(self.size)]
-        for i in range(self.size):
-            r = self.size
-            c = i+1
-            dir = 1
-            
-            while c < self.size+1 and r > 0:
-                self.pipes[i].append([r,c])
-                boxy = [b for b in self.boxes if b.location == [r,c]]
-                
-                if [r,c] in self.elbows:
-                    if dir==1:
-                        if boxy[0].filling  != 0:
-                            boxy[0].filling = 6
-                        else:
-                            boxy[0].filling = 4
-                    else:
-                        if boxy[0].filling  != 0:
-                            boxy[0].filling = 6
-                        else:
-                            boxy[0].filling = 5
-                            self.nwelbowcount[i] += 1
-                    dir = -1*dir
-                else:
-                    if boxy[0].filling  != 0:
-                            boxy[0].filling = 3
-                    else:
+        
+        #for regular
+        if not co:
+            for i in range(self.size):
+                r = self.size
+                c = i+1
+                dir = 1
+        
+                while c < self.size+1 and r > 0:
+                    self.pipes[i].append([r,c])
+                    boxy = [b for b in self.boxes if b.location == [r,c]]
+                    
+                    if [r,c] in self.elbows:
                         if dir==1:
-                            boxy[0].filling = 1
+                            if boxy[0].filling  != 0:
+                                boxy[0].filling = 6
+                            else:
+                                boxy[0].filling = 4
                         else:
-                            boxy[0].filling = 2
+                            if boxy[0].filling  != 0:
+                                boxy[0].filling = 6
+                            else:
+                                boxy[0].filling = 5
+                                self.nwelbowcount[i] += 1
+                        dir = -1*dir
+                    else:
+                        if boxy[0].filling  != 0:
+                                boxy[0].filling = 3
+                        else:
+                            if dir==1:
+                                boxy[0].filling = 1
+                            else:
+                                boxy[0].filling = 2
+                                
+                    if dir==1:
+                        r += -1
+                    if dir==-1:
+                        c += 1
+                    if r == 0:
+                        self.badpipes.append(self.pipes[i])
+                        for pos in self.pipes[i]:
+                            self.bad.append(pos)
                             
-                if dir==1:
-                    r += -1
-                if dir==-1:
-                    c += 1
-                if r == 0:
-                    self.badpipes.append(self.pipes[i])
-                    for pos in self.pipes[i]:
-                        self.bad.append(pos)
+        if co:
+            for i in range(self.size):
+                r = 1
+                c = i+1
+                dir = 1
+        
+                while c < self.size+1 and r < self.size+1:
+                    self.pipes[i].append([r,c])
+                    boxy = [b for b in self.boxes if b.location == [r,c]]
+                    
+                    if [r,c] in self.elbows:
+                        if dir==1:
+                            if boxy[0].filling  != 0:
+                                boxy[0].filling = 6
+                            else:
+                                boxy[0].filling = 4
+                        else:
+                            if boxy[0].filling  != 0:
+                                boxy[0].filling = 6
+                            else:
+                                boxy[0].filling = 5
+                                self.nwelbowcount[i] += 1
+                        dir = -1*dir
+                    else:
+                        if boxy[0].filling  != 0:
+                                boxy[0].filling = 3
+                        else:
+                            if dir==1:
+                                boxy[0].filling = 1
+                            else:
+                                boxy[0].filling = 2
+                                
+                    if dir==1:
+                        r += 1
+                    if dir==-1:
+                        c += 1
+                    if r == 0:
+                        self.badpipes.append(self.pipes[i])
+                        for pos in self.pipes[i]:
+                            self.bad.append(pos)
+                        
+        #finds crossings
+        crossings = [b.location for b in self.boxes if b.filling == 3]
+        if not co:
+            crossings.sort(key=sortfcn)
+        else:
+            crossings.sort(key=cosortfcn)
+        crosslocs = []
+        self.bumps = []
+        for cross in crossings:
+            newloc = [i for i in range(self.size) if cross in self.pipes[i]]
+            if newloc not in crosslocs:
+                crosslocs.append(newloc)
+            else:
+                crosstime = []
+                self.bumps.append(cross)
+                for p in newloc:
+                    crosstime.append([i for i in range(len(self.pipes[p])) if self.pipes[p][i] == cross])
+                    
+                bflag0 = False
+                bflag1 = False
+                if self.pipes[newloc[0]] in self.badpipes:
+                    bflag0 = True
+                    self.badpipes.remove(self.pipes[newloc[0]])
+                if self.pipes[newloc[1]] in self.badpipes:
+                    bflag1 = True
+                    self.badpipes.remove(self.pipes[newloc[1]])
+                
+                cut0 = self.pipes[newloc[0]][crosstime[0][0]:]
+                cut1 = self.pipes[newloc[1]][crosstime[1][0]:]
+                self.pipes[newloc[0]] = self.pipes[newloc[0]][:crosstime[0][0]] + cut1
+                self.pipes[newloc[1]] = self.pipes[newloc[1]][:crosstime[1][0]] + cut0
+                
+                if bflag0:
+                    self.badpipes.append(self.pipes[newloc[1]])
+                if bflag1:
+                    self.badpipes.append(self.pipes[newloc[0]])
+                
             
         
         blanks = [b.location for b in self.boxes if b.filling == 0]            
@@ -91,7 +181,7 @@ class BPD:
         for j in range(1,self.size+1):
             permflag = 0
             for i in range(self.size):
-                if [j,self.size] == self.pipes[i][len(self.pipes[i])-1] and i not in self.badpipes:
+                if [j,self.size] == self.pipes[i][len(self.pipes[i])-1] and self.pipes[i] not in self.badpipes:
                     permflag = 1
                     self.perm.append(i+1)
                     break
@@ -105,6 +195,22 @@ class BPD:
         self.size += m
             
         self.__init__(self.size,self.elbows,1)
+        
+    def coBPD(self):
+        if self.co == False:
+            self.__init__(self.size,self.elbows,1,co=True)
+        else:
+            self.__init__(self.size,self.elbows,1,co=False)
+        '''
+        if '?' not in self.perm:
+            for i in range(len(self.elbows)):
+                self.elbows[i][0] = self.size - self.elbows[i][0] + 1
+            self.__init__(self.size,self.elbows,1)
+        else:
+            print()
+            print(self.elbows)
+            print('invalid')
+        '''
             
     
     #Converts BPD by doing a mindroop move
@@ -481,32 +587,145 @@ class BPD:
                 #b
                 else:
                     continue
-                    
+                
+    def checkreduced(self):
+        for i in range(self.size-1):
+            for j in range(i+1,self.size):
+                crossing = [value for value in self.pipes[j] if value in self.pipes[i]]
+                if len(crossing) > 1:
+                    return False
+        return True
     
+    def get_droop_moves(self, red=True):
+        droop_moves = []
+        kdroop_moves = []
+        
+        relbows = [box.location for box in self.boxes if box.filling == 4]
+        jelbows = [box.location for box in self.boxes if box.filling == 5]
+        blanks = [box.location for box in self.boxes if box.filling == 0]
+        
+        for relb in relbows:
+            cont = True
+            
+            for b in blanks:        
+                if (b[0] > relb[0]) and (b[1] > relb[1]):
+                    GOOD = True
+                else:
+                    GOOD = False
+                    continue
+                    
+                for i in range(relb[0], b[0]+1):
+                    for j in range(relb[1], b[1]+1):
+                        cell = [i,j]
+                        if cell != relb:
+                            if cell in relbows or cell in jelbows:
+                                GOOD = False
+                                break
+                    if not GOOD:
+                        break
+                if GOOD:
+                    droop_moves.append([relb, b])
+             
+            if red == False:
+                for jelb in jelbows:
+                    if (jelb[0] > relb[0] and (jelb[1] > relb[1])):
+                        GOOD = True
+                    else:
+                        GOOD = False
+                        continue
+                    
+                    for jelb2 in jelbows:
+                        if jelb2 != jelb:
+                            if (jelb[0] >= jelb2[0] >= relb[0] and jelb[1] >= jelb2[1] >= relb[1]):
+                                GOOD = False
+                                break
+                    
+                    w = 0
+                    for r in relbows:
+                        
+                        if (r[0] == relb[0] or r[1] == relb[1]) and r != relb:
+                            GOOD = False
+                            break
+                        
+                        if not (jelb[0] >= r[0] > relb[0] and jelb[1] >= r[1] > relb[1]):
+                            continue
+                        
+                        
+                        if ((jelb[0] == r[0] and jelb[1] > r[1] > relb[1]) or (jelb[1] == r[1] and jelb[0] > r[0] > relb[0])):
+                            if w == 0:
+                                w = r
+                            else:
+                                GOOD = False
+                                break
+                        else:
+                            GOOD = False
+                            break
+                            
+                        if not GOOD:
+                            break
+                    
+                    if GOOD:
+                        if w != 0:
+                            droop_moves.append([relb, w])
+            
+                    
+        return droop_moves
+                
+    def do_droop_move(self, move):
+        
+        if move[1] not in self.elbows:
+            self.elbows.remove(move[0])
+            self.elbows.append(move[1])
+            self.elbows.append([move[0][0], move[1][1]])
+            self.elbows.append([move[1][0], move[0][1]])
+            self.__init__(self.size, self.elbows)
+        else:
+            self.elbows.remove(move[0])
+            self.elbows.remove(move[1])
+            self.elbows.append([move[0][0], move[1][1]])
+            self.elbows.append([move[1][0], move[0][1]])
+            self.__init__(self.size, self.elbows)
     
     
     #Creates LaTex code to print a BPD
     def tex(self,scale='.4'):
         texcode = '\\begin{tikzpicture}[scale ='+scale+']'
-        for b in self.boxes:
-            if b.filling == 0:
-                texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\nowire};'
-            if b.filling == 1:
-                texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\vwire};'
-            if b.filling == 2:
-                texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\hwire};'
-            if b.filling == 3:
-                texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\cross};'
-            if b.filling == 4:
-                texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\seelbow};'
-            if b.filling == 5:
-                texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\nwelbow};'
-            if b.filling == 6:
-                texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\bump};'
+        if not self.co:
+            for b in self.boxes:
+                if b.filling == 0:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\nowire};'
+                if b.filling == 1:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\vwire};'
+                if b.filling == 2:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\hwire};'
+                if b.filling == 3:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\cross};'
+                if b.filling == 4:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\are};'
+                if b.filling == 5:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\jay};'
+                if b.filling == 6:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\bump};'
+        else:
+            for b in self.boxes:
+                if b.filling == 0:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\nowire};'
+                if b.filling == 1:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\vwire};'
+                if b.filling == 2:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\hwire};'
+                if b.filling == 3:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\cross};'
+                if b.filling == 4:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\el};'
+                if b.filling == 5:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\en};'
+                if b.filling == 6:
+                    texcode += '\\node at ('+str(b.location[1]-1)+","+str(self.size-b.location[0])+') {\\bump};'
         
         texcode += '\\end{tikzpicture}'
         
-        self.latex += texcode
+        #self.latex += texcode
         
         return texcode
     
@@ -771,5 +990,255 @@ def transrules(transpositions, mid): #must have at least 3 transpositions, mid m
             transpositions[mid] = [v3, v4]
             
     return transpositions
+
+    
+def BPDsofPerm(perm, red=True):
+    BPDs = []
+    new_BPDs = [RothaBPD(perm)]
+    
+    while len(new_BPDs) != 0:
+        pipe = new_BPDs.pop()
+        BPDs.append(pipe)
+        droopMoves = pipe.get_droop_moves(red=red)
+        
+        for move in droopMoves:
+            new_pipe = copy.deepcopy(pipe)
+            new_pipe.do_droop_move(move)
             
-print(transrules([[3,4],[2,5],[1,2]],1))
+            flag = True
+            for test in BPDs:
+                if test.elbows == new_pipe.elbows:
+                    flag = False
+                    break
+            if flag:
+                for test in new_BPDs:
+                    if test.elbows == new_pipe.elbows:
+                        flag = False
+                        break
+            if flag:
+                new_BPDs.append(new_pipe)
+                
+    return BPDs
+
+def nonreducedCoBPDsofPerm(perm, red=False):
+    targets = []
+    for pipe in BPDsofPerm(perm, red):
+        copipe = copy.deepcopy(pipe)
+        copipe.coBPD()
+        if copipe.checkreduced() == False:
+            targets.append(copipe)
+            
+    return targets
+
+
+def permpatterncontainment(perm, pattern, p=False):
+    if len(pattern) > len(perm):
+        return False
+    
+    patorder = []
+    for i in range(len(pattern)):
+        for j in range(len(pattern)):
+            if pattern[j] == i+1:
+                patorder.append(j)
+                break
+            
+    options = itertools.combinations(range(len(perm)), len(pattern))
+    for op in options:
+        flag = True
+        for i in range(len(patorder)-1):
+            if perm[op[patorder[i]]] > perm[op[patorder[i+1]]]:
+                flag = False
+                break
+        if flag:
+            if p:
+                #print([perm[op[j]] for j in range(len(pattern))])
+                return [perm[op[j]] for j in range(len(pattern))]
+            return True
+            
+    return False
+
+def getBadCoLocations(BPD):
+    testBPD = copy.deepcopy(BPD)
+    locs = []
+    if not testBPD.co:
+        testBPD.coBPD()
+        
+    crossings = [b.location for b in testBPD.boxes if b.filling == 3]
+    for bump in testBPD.bumps:
+        crossings.remove(bump)
+        locs.append(bump)
+        for i in range(1,bump[0]):
+            if [bump[0]-i,bump[1]] in testBPD.elbows:
+                locs.append([bump[0]-i,bump[1]])
+                break
+        for j in range(1,bump[1]):
+            if [bump[0],bump[1]-j] in testBPD.elbows:
+                locs.append([bump[0],bump[1]-j])
+                break
+        for cross in crossings:
+            if cross[0] < bump[0] and cross[1] < bump[1]:
+                pipeflag = 0
+                for pipe in testBPD.pipes:
+                    if cross in pipe and bump in pipe:
+                        pipeflag += 1
+                        if pipeflag == 2:
+                            locs.append(cross)
+                            for i in range(1,bump[0]-cross[0]):
+                                if [cross[0]+i,cross[1]] in testBPD.elbows:
+                                    locs.append([cross[0]+i,cross[1]])
+                                    break
+                            for j in range(1,bump[1]-cross[1]):
+                                if [cross[0],cross[1]+j] in testBPD.elbows:
+                                    locs.append([cross[0],cross[1]+j])
+                                    break
+                            break
+        
+        
+    return locs
+
+
+def get_blanks(BPD):
+    blanks = [tuple(b.location) for b in BPD.boxes if b.filling == 0]
+    blanks = tuple(blanks)
+    return blanks
+
+def check_repeat_blanks(perm):
+    BPDs = BPDsofPerm(perm)
+    blank_dict = dict()
+    for BPD in BPDs:
+        blankers = get_blanks(BPD)
+        blank_dict.setdefault(blankers, 0)
+        blank_dict[blankers] += 1
+    
+    for key in blank_dict.keys():
+        if blank_dict[key] > 1:
+            return True
+    return False
+    
+'''
+badpats = [(2,1,4,3,6,5), (3,2,1,6,5,4)]
+n = 7
+perms = list(itertools.permutations([i+1 for i in range(n)]))
+for p in perms:
+    if check_repeat_blanks(p):
+        if not permpatterncontainment(p, (2,1,4,3,6,5)):
+            if not permpatterncontainment(p, (3,2,1,6,5,4)):
+                badpats.append(p)
+                
+n = 8
+perms = list(itertools.permutations([i+1 for i in range(n)]))
+for p in perms:
+    if check_repeat_blanks(p):
+        flag = False
+        for b in badpats:
+            if not permpatterncontainment(p, b):
+                flag = True
+                break
+        if not flag:
+            print(p)
+'''
+        
+'''
+badpats = [(1,4,2,3),(1,2,5,4,3),(1,3,2,5,4),(2,5,1,4,3),(2,1,5,6,4,3),(2,1,6,5,4,3),(2,4,1,6,5,3)]
+for n in range(7,9):
+
+    perms = list(itertools.permutations([i+1 for i in range(n)]))
+    permspat = []
+    for p in perms:
+        for pipe in BPDsofPerm(p, red=False):
+            copipe = copy.deepcopy(pipe)
+            copipe.coBPD()
+            if copipe.checkreduced() == False:
+                patflag = True
+                for pat in badpats:
+                    if permpatterncontainment(p, pat):
+                        patflag = False
+                        break
+                if patflag:
+                    badpats.append(p)
+                
+                break
+        
+print(badpats)
+print()
+'''
+'''
+baddies2 = []
+perms = list(itertools.permutations([i+1 for i in range(n)]))
+permspat = []
+for p in perms:
+    for pipe in BPDsofPerm(p, red=False):
+        copipe = copy.deepcopy(pipe)
+        copipe.coBPD()
+        if copipe.checkreduced() == False:
+            if p not in baddies1:
+                print(pipe.elbows)
+                print(p)
+            baddies2.append(p)
+            break
+        
+print(len(baddies2))
+print()
+
+for b in baddies2:
+    if b not in baddies1:
+        print(b)
+'''
+
+'''
+n = 5
+baddies = []
+perms = list(itertools.permutations([i+1 for i in range(n)]))
+for p in perms:
+    for pipe in BPDsofPerm(p, red=False):
+        copipe = copy.deepcopy(pipe)
+        copipe.coBPD()
+        if copipe.checkreduced() == False:
+            baddies.append(p)
+            break
+        else:
+            continue
+        
+print(len(baddies))
+'''
+
+'''
+n = 9
+count = 0
+badpats = [(1,4,2,3),(1,2,5,4,3),(1,3,2,5,4),(2,5,1,4,3),(2,1,5,6,4,3),(2,1,6,5,4,3),(2,4,1,6,5,3)]
+perms = list(itertools.permutations([i+1 for i in range(n)]))
+for p in perms:
+    for pat in badpats:
+        if permpatterncontainment(p, pat):
+            count += 1
+            break
+print(count)
+'''
+
+'''
+n = 10
+count = 0
+badpats = [(1,4,2,3),(1,2,5,4,3),(1,3,2,5,4),(2,5,1,4,3),(2,1,5,6,4,3),(2,1,6,5,4,3),(2,4,1,6,5,3)]
+perms = list(itertools.permutations([i+1 for i in range(n)]))
+for p in perms:
+    flag = True
+    for pat in badpats:
+        if permpatterncontainment(p, pat):
+            flag = False
+            break
+    if flag:
+        for pipe in BPDsofPerm(p, red=False):
+            copipe = copy.deepcopy(pipe)
+            copipe.coBPD()
+            if copipe.checkreduced() == False:
+                print(p)
+                break
+            else:
+                continue
+print('done')   
+
+
+for thing in nonreducedCoBPDsofPerm([2,3,1,6,5,4]):
+    print(thing.elbows)
+    
+'''
